@@ -35,7 +35,6 @@ func (d *dag) AddNode(id string, name string) error {
 	return nil
 }
 
-// Get the immediate parents of a node, passing the node id as input parameter.
 func (d *dag) GetParents(id string) ([]Node, error) {
 	if _, exists := d.nodes[id]; !exists {
 		return []Node{}, fmt.Errorf(NodeNotFound)
@@ -49,7 +48,6 @@ func (d *dag) GetParents(id string) ([]Node, error) {
 	return parents, nil
 }
 
-// Get the immediate children of a node, passing the node id as input parameter.
 func (d *dag) GetChildren(id string) ([]Node, error) {
 	if _, exists := d.nodes[id]; !exists {
 		return []Node{}, fmt.Errorf(NodeNotFound)
@@ -63,7 +61,6 @@ func (d *dag) GetChildren(id string) ([]Node, error) {
 	return children, nil
 }
 
-// Get the ancestors of a node, passing the node id as input parameter.
 func (d *dag) GetAncestors(id string) (map[string]Node, error) {
 	if _, exists := d.nodes[id]; !exists {
 		return nil, fmt.Errorf(NodeNotFound)
@@ -87,7 +84,6 @@ func (d *dag) GetAncestors(id string) (map[string]Node, error) {
 	return ancestors, nil
 }
 
-// Get the descendants of a node, passing the node id as input parameter.
 func (d *dag) GetDescendents(id string) (map[string]Node, error) {
 	if _, exists := d.nodes[id]; !exists {
 		return nil, fmt.Errorf(NodeNotFound)
@@ -110,7 +106,6 @@ func (d *dag) GetDescendents(id string) (map[string]Node, error) {
 	return descendents, nil
 }
 
-// Delete dependency from a tree, passing parent node id and child node id.
 func (d *dag) DeleteRelation(parentId string, childId string) error {
 	if _, exists := d.nodes[parentId]; !exists {
 		return fmt.Errorf(NodeNotFound)
@@ -133,7 +128,6 @@ func (d *dag) DeleteRelation(parentId string, childId string) error {
 	return nil
 }
 
-// Delete a node from a tree, passing node id as input parameter. This should delete all the dependencies of the node.
 func (d *dag) delete(nodeId string) error {
 	if _, exists := d.nodes[nodeId]; !exists {
 		return fmt.Errorf(NodeNotFound)
@@ -151,7 +145,6 @@ func (d *dag) delete(nodeId string) error {
 	return nil
 }
 
-// Add a new dependency to a tree, passing parent node id and child node id. This should check for cyclic dependencies.
 func (d *dag) AddRelation(parentId string, childId string) error {
 	if _, exists := d.nodes[parentId]; !exists {
 		return fmt.Errorf(NodeNotFound)
@@ -171,7 +164,6 @@ func (d *dag) AddRelation(parentId string, childId string) error {
 	return nil
 }
 
-// Add a new node to tree. This node will have no parents and children. Dependency will be established by calling the 7 number API.
 func (d *dag) AddMember(newNodeId string, parentId string, childId string) error {
 	if _, exists := d.nodes[parentId]; !exists {
 		return fmt.Errorf(NodeNotFound)

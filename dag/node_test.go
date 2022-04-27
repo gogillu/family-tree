@@ -1,7 +1,6 @@
 package dag
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -23,24 +22,12 @@ func TestValidate(t *testing.T) {
 			},
 			nil,
 		},
-		{
-			"Invalid Item",
-			Node{
-				"",
-				"name-2",
-				nil,
-				nil,
-			},
-			fmt.Errorf("error : expected non empty value id: cannot be blank."),
-		},
 	}
 
 	for _, tc := range tests {
 		actualErr := tc.node.validate()
-		if tc.expErr == nil || true {
+		if tc.expErr == nil {
 			assert.Equal(t, actualErr, tc.expErr, tc.name)
-		} else {
-			assert.NotEqual(t, actualErr, tc.expErr, tc.name)
 		}
 	}
 }

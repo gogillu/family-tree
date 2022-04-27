@@ -22,7 +22,7 @@ func New() *dag {
 }
 
 func (d *dag) AddNode(id string, name string) error {
-	if _, exists := d.nodes[id]; !exists {
+	if _, exists := d.nodes[id]; exists {
 		return fmt.Errorf(NodeAlreadyExistsError)
 	}
 
@@ -35,42 +35,36 @@ func (d *dag) AddNode(id string, name string) error {
 	return nil
 }
 
-func (d *dag) GetParents(id string) ([]Node, error) {
-	if _, exists := d.nodes[id]; !exists {
-		return []Node{}, fmt.Errorf(NodeNotFound)
-	}
-
-	var parents []Node
-	for _, node := range d.nodes[id].GetParents() {
-		parents = append(parents, *node)
-	}
-
-	return parents, nil
-}
-
-func (d *dag) GetChildren(id string) ([]Node, error) {
-	if _, exists := d.nodes[id]; !exists {
-		return []Node{}, fmt.Errorf(NodeNotFound)
-	}
-
-	var children []Node
-	for _, node := range d.nodes[id].GetChildren() {
-		children = append(children, *node)
-	}
-
-	return children, nil
-}
-
-func (d *dag) GetAncestors(id string) (map[string]Node, error) {
+func (d *dag) GetParents(id string) (map[string]*Node, error) {
 	if _, exists := d.nodes[id]; !exists {
 		return nil, fmt.Errorf(NodeNotFound)
 	}
 
-	var ancestors map[string]Node = make(map[string]Node)
+	return d.nodes[id].GetParents(), nil
+}
+
+func (d *dag) GetChildren(id string) (map[string]*Node, error) {
+	if _, exists := d.nodes[id]; !exists {
+		return nil, fmt.Errorf(NodeNotFound)
+	}
+
+	return d.nodes[id].GetChildren(), nil
+}
+
+func (d *dag) GetAncestors(id string) (map[string]*Node, error) {
+	if _, exists := d.nodes[id]; !exists {
+		return nil, fmt.Errorf(NodeNotFound)
+	}
+
+	var ancestors map[string]*Node = make(map[string]*Node)
 	for _, parentNode := range d.nodes[id].parents {
-		ancestors[parentNode.GetId()] = *parentNode
+		ancestors[parentNode.GetId()] = parentNode
 
 		grandParents, err := d.GetAncestors(parentNode.GetId())
+		if len(grandParents) == 0 {
+			continue
+		}
+
 		if err != nil {
 			return ancestors, err
 		}
@@ -78,22 +72,25 @@ func (d *dag) GetAncestors(id string) (map[string]Node, error) {
 		for _, grandParent := range grandParents {
 			ancestors[grandParent.GetId()] = grandParent
 		}
-
 	}
 
 	return ancestors, nil
 }
 
-func (d *dag) GetDescendents(id string) (map[string]Node, error) {
+func (d *dag) GetDescendents(id string) (map[string]*Node, error) {
 	if _, exists := d.nodes[id]; !exists {
 		return nil, fmt.Errorf(NodeNotFound)
 	}
 
-	var descendents map[string]Node = make(map[string]Node)
+	var descendents map[string]*Node = make(map[string]*Node)
 	for _, childNode := range d.nodes[id].children {
-		descendents[childNode.GetId()] = *childNode
+		descendents[childNode.GetId()] = childNode
 
 		grandchildren, err := d.GetDescendents(childNode.GetId())
+		if len(grandchildren) == 0 {
+			continue
+		}
+
 		if err != nil {
 			return descendents, err
 		}
@@ -154,13 +151,15 @@ func (d *dag) AddRelation(parentId string, childId string) error {
 		return fmt.Errorf(NodeNotFound)
 	}
 
-	ancestors, _ := d.GetAncestors(childId)
-	if _, exists := ancestors[parentId]; exists {
-		return fmt.Errorf(CyclicDependencyError)
+	ancestors, _ := d.GetAncestors(parentId)
+	fmt.Println("anc ", ancestors)
+	if _, exists := ancestors[childId]; exists {
+		return fmt.Errorf(CyclicDependencyError+" between node %v and %v", parentId, childId)
 	}
 
 	d.nodes[parentId].children[childId] = d.nodes[childId]
 	d.nodes[childId].parents[parentId] = d.nodes[parentId]
+
 	return nil
 }
 

@@ -3,8 +3,8 @@ package dag
 import "github.com/pkg/errors"
 
 const (
-	ErrorFormat         = "%w nodeId %s"
-	ErrorFormatTwoNodes = "%w nodeId %s %s"
+	CommonErrorFormat      = "%w nodeId %s"
+	RelationDagErrorFormat = "%w nodeId %s %s"
 )
 
 var (

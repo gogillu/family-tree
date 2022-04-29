@@ -8,13 +8,6 @@ type dag struct {
 	nodes map[string]*Node
 }
 
-const (
-	NodeAlreadyExistsError = "error : node already exists"
-	NodeNotFound           = "error : node not found"
-	NodeRelationNotFound   = "error : node relation not present"
-	CyclicDependencyError  = "error : can not create cyclic dependency"
-)
-
 func New() *dag {
 	d := dag{}
 	d.nodes = make(map[string]*Node)
@@ -23,7 +16,7 @@ func New() *dag {
 
 func (d *dag) AddNode(id string, name string) error {
 	if _, exists := d.nodes[id]; exists {
-		return fmt.Errorf(NodeAlreadyExistsError)
+		return fmt.Errorf(ErrorFormat, NodeAlreadyExistsError, id)
 	}
 
 	node := NewNode(id, name)
@@ -37,7 +30,7 @@ func (d *dag) AddNode(id string, name string) error {
 
 func (d *dag) GetParents(id string) (map[string]*Node, error) {
 	if _, exists := d.nodes[id]; !exists {
-		return nil, fmt.Errorf(NodeNotFound)
+		return nil, fmt.Errorf(ErrorFormat, NodeNotFound, id)
 	}
 
 	return d.nodes[id].GetParents(), nil
@@ -45,79 +38,63 @@ func (d *dag) GetParents(id string) (map[string]*Node, error) {
 
 func (d *dag) GetChildren(id string) (map[string]*Node, error) {
 	if _, exists := d.nodes[id]; !exists {
-		return nil, fmt.Errorf(NodeNotFound)
+		return nil, fmt.Errorf(ErrorFormat, NodeNotFound, id)
 	}
 
 	return d.nodes[id].GetChildren(), nil
 }
 
-func (d *dag) GetAncestors(id string) (map[string]*Node, error) {
+func (d *dag) GetAncestors(id string, ancestors map[string]*Node) error {
 	if _, exists := d.nodes[id]; !exists {
-		return nil, fmt.Errorf(NodeNotFound)
+		return fmt.Errorf(ErrorFormat, NodeNotFound, id)
 	}
 
-	var ancestors map[string]*Node = make(map[string]*Node)
-	for _, parentNode := range d.nodes[id].parents {
-		ancestors[parentNode.GetId()] = parentNode
-
-		grandParents, err := d.GetAncestors(parentNode.GetId())
-		if len(grandParents) == 0 {
-			continue
-		}
-
-		if err != nil {
-			return ancestors, err
-		}
-
-		for _, grandParent := range grandParents {
-			ancestors[grandParent.GetId()] = grandParent
+	for _, parent := range d.nodes[id].GetParents() {
+		if _, exists := ancestors[parent.GetId()]; !exists {
+			ancestors[parent.GetId()] = parent
+			err := d.GetAncestors(parent.GetId(), ancestors)
+			if err != nil {
+				return fmt.Errorf(ErrorFormat, AncestorsComputationError, id)
+			}
 		}
 	}
 
-	return ancestors, nil
+	return nil
 }
 
-func (d *dag) GetDescendents(id string) (map[string]*Node, error) {
+func (d *dag) GetDescendents(id string, descendents map[string]*Node) error {
 	if _, exists := d.nodes[id]; !exists {
-		return nil, fmt.Errorf(NodeNotFound)
+		return fmt.Errorf(ErrorFormat, NodeNotFound, id)
 	}
 
-	var descendents map[string]*Node = make(map[string]*Node)
-	for _, childNode := range d.nodes[id].children {
-		descendents[childNode.GetId()] = childNode
-
-		grandchildren, err := d.GetDescendents(childNode.GetId())
-		if len(grandchildren) == 0 {
-			continue
-		}
-
-		if err != nil {
-			return descendents, err
-		}
-
-		for _, grandchild := range grandchildren {
-			descendents[grandchild.GetId()] = grandchild
+	for _, child := range d.nodes[id].GetChildren() {
+		if _, exists := descendents[child.GetId()]; !exists {
+			descendents[child.GetId()] = child
+			err := d.GetDescendents(child.GetId(), descendents)
+			if err != nil {
+				return fmt.Errorf(ErrorFormat, AncestorsComputationError, id)
+			}
 		}
 	}
 
-	return descendents, nil
+	return nil
 }
 
 func (d *dag) DeleteRelation(parentId string, childId string) error {
 	if _, exists := d.nodes[parentId]; !exists {
-		return fmt.Errorf(NodeNotFound)
+		return fmt.Errorf(ErrorFormat, NodeNotFound, parentId)
 	}
 
 	if _, exists := d.nodes[childId]; !exists {
-		return fmt.Errorf(NodeNotFound)
+		return fmt.Errorf(ErrorFormat, NodeNotFound, childId)
 	}
 
 	if _, relation := d.nodes[parentId].children[childId]; !relation {
-		return fmt.Errorf(NodeRelationNotFound)
+		return fmt.Errorf(ErrorFormatTwoNodes, NodeRelationNotFound, parentId, childId)
 	}
 
 	if _, relation := d.nodes[childId].parents[parentId]; !relation {
-		return fmt.Errorf(NodeRelationNotFound)
+		return fmt.Errorf(ErrorFormatTwoNodes, NodeRelationNotFound, parentId, childId)
 	}
 
 	delete(d.nodes[parentId].children, childId)
@@ -125,66 +102,44 @@ func (d *dag) DeleteRelation(parentId string, childId string) error {
 	return nil
 }
 
-func (d *dag) delete(nodeId string) error {
-	if _, exists := d.nodes[nodeId]; !exists {
-		return fmt.Errorf(NodeNotFound)
+func (d *dag) delete(id string) error {
+	if _, exists := d.nodes[id]; !exists {
+		return fmt.Errorf(ErrorFormat, NodeNotFound, id)
 	}
 
-	for _, n := range d.nodes[nodeId].parents {
-		delete(n.children, nodeId)
+	for _, n := range d.nodes[id].parents {
+		delete(n.children, id)
 	}
 
-	for _, n := range d.nodes[nodeId].children {
-		delete(n.parents, nodeId)
+	for _, n := range d.nodes[id].children {
+		delete(n.parents, id)
 	}
 
-	d.nodes[nodeId] = nil
+	d.nodes[id] = nil
 	return nil
 }
 
 func (d *dag) AddRelation(parentId string, childId string) error {
 	if _, exists := d.nodes[parentId]; !exists {
-		return fmt.Errorf(NodeNotFound)
+		return fmt.Errorf(ErrorFormat, NodeNotFound, parentId)
 	}
 
 	if _, exists := d.nodes[childId]; !exists {
-		return fmt.Errorf(NodeNotFound)
+		return fmt.Errorf(ErrorFormat, NodeNotFound, childId)
 	}
 
-	ancestors, _ := d.GetAncestors(parentId)
-	fmt.Println("anc ", ancestors)
+	ancestors := make(map[string]*Node)
+	err := d.GetAncestors(parentId, ancestors)
+	if err != nil {
+		return fmt.Errorf(ErrorFormat, AncestorsComputationError, parentId)
+	}
+
 	if _, exists := ancestors[childId]; exists {
-		return fmt.Errorf(CyclicDependencyError+" between node %v and %v", parentId, childId)
+		return fmt.Errorf(ErrorFormatTwoNodes, CyclicDependencyError, parentId, childId)
 	}
 
 	d.nodes[parentId].children[childId] = d.nodes[childId]
 	d.nodes[childId].parents[parentId] = d.nodes[parentId]
-
-	return nil
-}
-
-func (d *dag) AddMember(newNodeId string, parentId string, childId string) error {
-	if _, exists := d.nodes[parentId]; !exists {
-		return fmt.Errorf(NodeNotFound)
-	}
-
-	if _, exists := d.nodes[childId]; !exists {
-		return fmt.Errorf(NodeNotFound)
-	}
-
-	if _, exists := d.nodes[newNodeId]; !exists {
-		return fmt.Errorf(NodeNotFound)
-	}
-
-	err := d.AddRelation(parentId, newNodeId)
-	if err != nil {
-		return err
-	}
-
-	err = d.AddRelation(newNodeId, childId)
-	if err != nil {
-		return err
-	}
 
 	return nil
 }

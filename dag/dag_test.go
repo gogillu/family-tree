@@ -1,6 +1,7 @@
 package dag
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 
@@ -33,7 +34,7 @@ func TestAddNode(t *testing.T) {
 			"Add Relation Invalid Node 2 (node already exists)",
 			"node-2-id",
 			"node-2-name",
-			fmt.Errorf(NodeAlreadyExistsError),
+			NodeAlreadyExistsError,
 		},
 	}
 
@@ -46,7 +47,7 @@ func TestAddNode(t *testing.T) {
 			assert.Equal(t, family.nodes[tc.nodeId].GetId(), tc.nodeId, tc.name)
 			assert.Equal(t, family.nodes[tc.nodeId].GetName(), tc.nodeName, tc.name)
 		} else {
-			assert.ErrorContainsf(t, actualErr, tc.expErr.Error(), tc.name)
+			assert.True(t, errors.Is(actualErr, tc.expErr), tc.name)
 		}
 	}
 }
@@ -103,7 +104,7 @@ func TestGetParents(t *testing.T) {
 			"Get Parents Invalid Node",
 			"node9id",
 			map[string]*Node{},
-			fmt.Errorf(NodeNotFound),
+			NodeNotFound,
 		},
 	}
 
@@ -114,7 +115,7 @@ func TestGetParents(t *testing.T) {
 			assert.Equal(t, actualErr, tc.expErr, tc.name)
 			assert.Equal(t, actualParents, tc.parents, tc.name)
 		} else {
-			assert.ErrorContainsf(t, actualErr, tc.expErr.Error(), tc.name)
+			assert.True(t, errors.Is(actualErr, tc.expErr), tc.name)
 		}
 	}
 }
@@ -170,7 +171,7 @@ func TestGetChildren(t *testing.T) {
 			"Get Children Invalid Node",
 			"node9id",
 			map[string]*Node{},
-			fmt.Errorf(NodeNotFound),
+			NodeNotFound,
 		},
 	}
 
@@ -181,7 +182,7 @@ func TestGetChildren(t *testing.T) {
 			assert.Equal(t, actualErr, tc.expErr, tc.name)
 			assert.Equal(t, actualParents, tc.children, tc.name)
 		} else {
-			assert.ErrorContainsf(t, actualErr, tc.expErr.Error(), tc.name)
+			assert.True(t, errors.Is(actualErr, tc.expErr), tc.name)
 		}
 	}
 }
@@ -214,14 +215,16 @@ func TestGetAncestors(t *testing.T) {
 	family.AddRelation(node5id, node2id)
 
 	tests := []struct {
-		name      string
-		nodeId    string
-		ancestors map[string]*Node
-		expErr    error
+		name            string
+		nodeId          string
+		actualAncestors map[string]*Node
+		ancestors       map[string]*Node
+		expErr          error
 	}{
 		{
 			"Get Ancestors Valid Node - Test Multilevel",
 			node1id,
+			make(map[string]*Node),
 			map[string]*Node{
 				node2id: family.nodes[node2id],
 				node3id: family.nodes[node3id],
@@ -233,6 +236,7 @@ func TestGetAncestors(t *testing.T) {
 		{
 			"Get Ancestors valid Node - One Level Parents",
 			node2id,
+			make(map[string]*Node),
 			map[string]*Node{
 				node4id: family.nodes[node4id],
 				node5id: family.nodes[node5id],
@@ -242,25 +246,27 @@ func TestGetAncestors(t *testing.T) {
 		{
 			"Get Ancestors valid Node - root node",
 			node3id,
+			make(map[string]*Node),
 			map[string]*Node{},
 			nil,
 		},
 		{
 			"Get Ancestors Invalid Node",
 			"node9id",
+			make(map[string]*Node),
 			map[string]*Node{},
-			fmt.Errorf(NodeNotFound),
+			NodeNotFound,
 		},
 	}
 
 	for _, tc := range tests {
-		actualAncestors, actualErr := family.GetAncestors(tc.nodeId)
+		actualErr := family.GetAncestors(tc.nodeId, tc.actualAncestors)
 
 		if tc.expErr == nil {
 			assert.Equal(t, actualErr, tc.expErr, tc.name)
-			assert.Equal(t, actualAncestors, tc.ancestors, tc.name)
+			assert.Equal(t, tc.actualAncestors, tc.ancestors, tc.name)
 		} else {
-			assert.ErrorContainsf(t, actualErr, tc.expErr.Error(), tc.name)
+			assert.True(t, errors.Is(actualErr, tc.expErr), tc.name)
 		}
 	}
 }
@@ -293,14 +299,16 @@ func TestGetDescendents(t *testing.T) {
 	family.AddRelation(node5id, node2id)
 
 	tests := []struct {
-		name        string
-		nodeId      string
-		descendents map[string]*Node
-		expErr      error
+		name              string
+		nodeId            string
+		actualDescendents map[string]*Node
+		descendents       map[string]*Node
+		expErr            error
 	}{
 		{
 			"Get Descendents Valid Node - Test Multilevel",
 			node5id,
+			make(map[string]*Node),
 			map[string]*Node{
 				node1id: family.nodes[node1id],
 				node2id: family.nodes[node2id],
@@ -310,6 +318,7 @@ func TestGetDescendents(t *testing.T) {
 		{
 			"Get Descendents valid Node - One Level Parents",
 			node2id,
+			make(map[string]*Node),
 			map[string]*Node{
 				node1id: family.nodes[node1id],
 			},
@@ -318,25 +327,27 @@ func TestGetDescendents(t *testing.T) {
 		{
 			"Get Descendents valid Node - leaf node",
 			node1id,
+			make(map[string]*Node),
 			map[string]*Node{},
 			nil,
 		},
 		{
 			"Get Descendents Invalid Node",
 			"node9id",
+			make(map[string]*Node),
 			map[string]*Node{},
-			fmt.Errorf(NodeNotFound),
+			NodeNotFound,
 		},
 	}
 
 	for _, tc := range tests {
-		actualDescendents, actualErr := family.GetDescendents(tc.nodeId)
+		actualErr := family.GetDescendents(tc.nodeId, tc.actualDescendents)
 
 		if tc.expErr == nil {
 			assert.Equal(t, actualErr, tc.expErr, tc.name)
-			assert.Equal(t, actualDescendents, tc.descendents, tc.name)
+			assert.Equal(t, tc.actualDescendents, tc.descendents, tc.name)
 		} else {
-			assert.ErrorContainsf(t, actualErr, tc.expErr.Error(), tc.name)
+			assert.True(t, errors.Is(actualErr, tc.expErr), tc.name)
 		}
 	}
 }
@@ -370,22 +381,19 @@ func TestAddRelation(t *testing.T) {
 			"Add Relation - Invalid Case - Cyclic Dependency (Dependent on previous testcase",
 			node1name,
 			node2name,
-			fmt.Errorf(CyclicDependencyError),
+			CyclicDependencyError,
 		},
 	}
 
 	for _, tc := range tests {
 		actualErr := family.AddRelation(tc.parentId, tc.nodeId)
 
-		fmt.Println(node1, "--", node2)
-
 		if tc.expErr == nil {
 			assert.Equal(t, actualErr, tc.expErr, tc.name)
 			assert.Equal(t, node1, node2.parents[node1name], tc.name)
 			assert.Equal(t, node1.children[node2name], node2, tc.name)
 		} else {
-			fmt.Println(actualErr, "act")
-			assert.ErrorContainsf(t, actualErr, tc.expErr.Error(), tc.name)
+			assert.True(t, errors.Is(actualErr, tc.expErr), tc.name)
 		}
 	}
 }
@@ -430,10 +438,10 @@ func TestDeleteRelation(t *testing.T) {
 			nil,
 		},
 		{
-			"Delete Invalid Relation - (un connected nodes)",
+			"Delete Invalid Relation - (disconnected nodes)",
 			node5id,
 			node1id,
-			fmt.Errorf(NodeRelationNotFound),
+			NodeRelationNotFound,
 		},
 	}
 
@@ -443,7 +451,9 @@ func TestDeleteRelation(t *testing.T) {
 		if tc.expErr == nil {
 			assert.Equal(t, tc.expErr, actualErr, tc.name)
 		} else {
-			assert.ErrorContainsf(t, actualErr, tc.expErr.Error(), tc.name)
+			fmt.Println(actualErr)
+			fmt.Println(tc.expErr)
+			assert.True(t, errors.Is(actualErr, tc.expErr), tc.name)
 		}
 	}
 }
